@@ -6,23 +6,9 @@ Isocall is a method for calling RNA isoforms from your entire PacBio Kinnex samp
 - Merge the profiles together (`isocall merge`)
 - Call isoforms from the resulting merged profile (`isocall call`)
 
-## Building isocall
+## Installation
 
-Isocall is written in Rust. If you don’t already have Rust on your system, you can install it like so:
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-Once Rust is installed, you can download isocall’s source code and build it like so:
-
-```bash
-git clone ssh://git@bitbucket.nanofluidics.com:7999/~edolzhenko/isocall.git
-cd isocall/
-cargo build --release
-```
-
-You can now find the binary in `target/release/isocall`.
+A Linux binary can be downloaded from the releases page.
 
 ## Example
 
