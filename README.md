@@ -36,5 +36,5 @@ isocall merge --profiles sampleA.gz sampleB.gz sampleC.gz --output merged.gz
 And finally call the isoforms:
 
 ```bash
-isocall call --merged-profile merged.gz --isoforms ref_seq.isoforms.gz --output-prefix merged
+isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --output-prefix merged
 ```
