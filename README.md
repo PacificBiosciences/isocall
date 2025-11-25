@@ -16,7 +16,7 @@ A Linux binary can be downloaded from the releases page.
 Prepare isoform annotations from RefSeq / ENCODE GTF file:
 
 ```bash
-isocall prep-isoforms --gff /Volumes/USB1/hg38.ncbiRefSeq.gtf.gz --output ref_seq.isoforms.gz
+isocall prep-isoforms --gtf /Volumes/USB1/hg38.ncbiRefSeq.gtf.gz --output ref_seq.isoforms.gz
 ```
 
 Suppose your dataset consists of three samples `sampleA`, `sampleB`, and `sampleC`.  Run the profile command to generate a profile for each sample:
@@ -38,3 +38,7 @@ And finally call the isoforms:
 ```bash
 isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --output-prefix merged
 ```
+
+## Notes
+
+- Use `--skip-mito` parameter of `isocall profile` to skip analysis of `chrM`
