@@ -36,9 +36,12 @@ isocall merge --profiles sampleA.gz sampleB.gz sampleC.gz --output merged.gz
 And finally call the isoforms:
 
 ```bash
-isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --output-prefix merged
+isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --reference hg38.fa --output-prefix merged
 ```
 
 ## Notes
 
 - Use `--skip-mito` parameter of `isocall profile` to skip analysis of `chrM`
+- Use `--use-all-chroms` to include non-core chromosomes in `isocall profile` and `isocall call`
+- The `--reference` argument requires an indexed FASTA file (with a corresponding `.fai` index)
+
