@@ -45,3 +45,6 @@ isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --r
 - Use `--use-all-chroms` to include non-core chromosomes in `isocall profile` and `isocall call`
 - The `--reference` argument requires an indexed FASTA file (with a corresponding `.fai` index)
 
+## Reference
+
+- [Calling isoforms with `isocall call`](docs/call.md)
