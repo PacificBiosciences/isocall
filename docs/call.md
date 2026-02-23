@@ -43,9 +43,8 @@ A fully documented example configuration file is provided at [examples/config.to
 # config.toml
 
 [sampling]
-min_read_support = 3        # Minimum read support for novel isoforms
-max_bundles_per_gene = 100  # Max bundles for isoform identification
-max_group_size = 10000      # Max bundles before downsampling
+min_reads_per_isoform = 3           # Minimum reads required to consider an isoform
+max_bundles_per_gene = 100          # Maximum bundles used per gene during read sampling
 
 [internal_priming_filter]
 enabled = true              # Set to false to disable the filter
@@ -75,14 +74,13 @@ The sampling section controls read support thresholds and downsampling behavior.
 
 | CLI Argument | Config Key | Default | Description |
 |--------------|------------|---------|-------------|
-| `--min-read-support` | `min_read_support` | 3 | Minimum read support for calling novel transcripts |
+| `--min-reads-per-isoform` | `min_reads_per_isoform` | 3 | Minimum reads required to consider an isoform |
 | `--max-bundles-per-gene` | `max_bundles_per_gene` | 100 | Maximum bundles to use for isoform identification per gene |
-| `--max-group-size` | `max_group_size` | 10000 | Maximum bundles per group before downsampling warning |
 
 ### When to Adjust Sampling Parameters
 
-- Increase `min_read_support`: For higher confidence novel isoform calls (reduces false positives)
-- Decrease `min_read_support`: To detect low-abundance novel isoforms (may increase false positives)
+- Increase `min_reads_per_isoform`: For higher confidence novel isoform calls (reduces false positives)
+- Decrease `min_reads_per_isoform`: To detect low-abundance novel isoforms (may increase false positives)
 - Increase `max_bundles_per_gene`: For more thorough analysis of complex genes (slower)
 - Decrease `max_bundles_per_gene`: For faster processing (may miss some isoforms)
 

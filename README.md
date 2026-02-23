@@ -47,4 +47,6 @@ isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --r
 
 ## Reference
 
+- [Generating transcription profiles with `isocall profile`](docs/profile.md)
+- [Merging profiles with `isocall merge`](docs/merge.md)
 - [Calling isoforms with `isocall call`](docs/call.md)
