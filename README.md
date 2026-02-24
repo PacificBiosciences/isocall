@@ -2,7 +2,8 @@
 
 <p align="center">Isocall is a method to joint-call RNA isoforms across many PacBio IsoSeq samples.</p>
 
-**Please note:** ⚠️ Isocall is currently in active development and should be used for experimentation and feedback. ⚠️
+> [!WARNING]
+> **Please note:** Isocall is currently in active development and should be used for experimentation and feedback.
 
 Isocall workflow consists of the following steps:
 
