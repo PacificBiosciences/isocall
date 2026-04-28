@@ -1,6 +1,8 @@
 # isocall call
 
-The `call` command performs isoform calling from merged transcriptome profiles. It identifies both known and novel isoforms, applies quality filters, and outputs a GTF file with isoforms.
+The `call` command performs isoform calling from merged transcriptome profiles.
+It identifies known and novel isoforms, applies quality filters, and outputs a
+GTF file with isoform annotations along with a per-sample count matrix.
 
 ## Basic usage
 
@@ -26,8 +28,11 @@ isocall call \
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--threads` | 1 | Number of threads to use |
-| `--use-all-chroms` | off | Enable analysis of non-core chromosomes |
+| `--use-all-chroms` | off | Include non-core chromosomes when loading known isoforms |
 | `--config` | none | Path to TOML configuration file |
+
+If you profiled non-core contigs with `isocall profile --use-all-chroms`, use
+the same flag here so the known-isoform database is loaded consistently.
 
 ## Configuration file
 
@@ -37,6 +42,10 @@ precedence over config file values.
 
 A fully documented example configuration file is provided at [examples/config.toml](../examples/config.toml).
 
+The `--internal-priming-filter` and `--relative-abundance-filter` flags accept
+`on` or `off`. Setting either flag to `off` disables that filter regardless of
+the config file.
+
 ### Example configuration
 
 ```toml
@@ -44,7 +53,8 @@ A fully documented example configuration file is provided at [examples/config.to
 
 [sampling]
 min_reads_per_isoform = 3           # Minimum reads required to consider an isoform
-max_bundles_per_gene = 100          # Maximum bundles used per gene during read sampling
+min_read_fraction = 0.99            # Fraction of reads to retain for each gene
+max_bundles_per_gene = 10000        # Upper bound on bundles retained per gene
 
 [internal_priming_filter]
 enabled = true              # Set to false to disable the filter
@@ -75,12 +85,17 @@ The sampling section controls read support thresholds and downsampling behavior.
 | CLI Argument | Config Key | Default | Description |
 |--------------|------------|---------|-------------|
 | `--min-reads-per-isoform` | `min_reads_per_isoform` | 3 | Minimum reads required to consider an isoform |
-| `--max-bundles-per-gene` | `max_bundles_per_gene` | 100 | Maximum bundles to use for isoform identification per gene |
+| `--min-read-fraction` | `min_read_fraction` | 0.99 | Sample bundles until they cover at least this fraction of reads for each gene |
+| `--max-bundles-per-gene` | `max_bundles_per_gene` | 10000 | Upper bound on bundles retained for each gene after read-fraction sampling |
+
+Note that bundles overlapping multiple genes are assigned to the highest-expressed gene for sampling.
 
 ### When to Adjust Sampling Parameters
 
 - Increase `min_reads_per_isoform`: For higher confidence novel isoform calls (reduces false positives)
 - Decrease `min_reads_per_isoform`: To detect low-abundance novel isoforms (may increase false positives)
+- Increase `min_read_fraction`: For more thorough analysis of complex genes (slower)
+- Decrease `min_read_fraction`: For faster processing (may miss low-support isoforms)
 - Increase `max_bundles_per_gene`: For more thorough analysis of complex genes (slower)
 - Decrease `max_bundles_per_gene`: For faster processing (may miss some isoforms)
 
@@ -92,13 +107,15 @@ artifacts of internal priming during reverse transcription.
 ### How It Works
 
 1. Known isoforms are always retained regardless of downstream sequence content.
-Novel isoforms with A-rich downstream sequences are flagged as potential internal priming artifacts
+   Novel isoforms with A-rich downstream sequences are flagged as potential
+   internal priming artifacts.
 
 2. A sequence is considered "A-rich" if either:
    - The A nucleotide content exceeds the threshold (default: 60%)
    - There is a run of As satisfying the run length threshold (default: 6)
 
-3. Flagged isoforms are not filtered if their TTS is within the rescue distance (default: 25bp) of an annotated TTS from known isoforms
+3. Flagged isoforms are not filtered if their TTS is within the rescue
+   distance (default: 25 bp) of an annotated TTS from known isoforms.
 
 ### Parameters
 
@@ -116,20 +133,32 @@ The relative abundance filter removes low-abundance novel isoforms that are simi
 
 ### How It Works
 
-For each pair of isoforms, if:
+For each pair of isoforms (higher-abundance vs lower-abundance), the filter does
+the following:
 
-1. They are within `max_distance` of each other
-2. The lower-abundance transcript's relative abundance falls below the threshold
+1. Calculates distance between the two transcripts from their exon chains: it
+sums junction/UTR boundary differences (in bp) and the length of exons that do
+not overlap between the two.
 
-Then the lower-abundance novel transcript is filtered out. Known (annotated) isoforms are never filtered.
+2. If the two transcripts are within `max_distance` of each other (and the
+lower-abundance one is novel), the filter compares relative abundance to a
+distance-dependent threshold:
+   - Relative abundance = (supporting read count of the lower-abundance
+   transcript) / (supporting read count of the higher-abundance transcript).
+   - Threshold = `abundance_base`^((distance − 1) / 5). The cutoff is
+   stricter when transcripts are very similar and looser when they are less
+   similar.
+
+3. If relative abundance is below the threshold, the lower-abundance novel
+transcript is filtered out.
 
 ### Parameters
 
 | CLI Argument | Config Key | Default | Description |
 |--------------|------------|---------|-------------|
 | `--relative-abundance-filter` | `enabled` | `on` / `true` | Enable or disable the filter |
-| `--relative-abundance-filter-max-distance` | `max_distance` | 20 | Maximum distance to compare transcripts |
-| `--relative-abundance-filter-abundance-base` | `abundance_base` | 0.1 | Base for relative abundance threshold |
+| `--relative-abundance-filter-max-distance` | `max_distance` | 20 | Maximum structural distance to compare transcripts (only pairs within this distance are considered) |
+| `--relative-abundance-filter-abundance-base` | `abundance_base` | 0.1 | Base for the distance-dependent threshold: filter when relative abundance <= `abundance_base`^((distance−1)/5) |
 
 ## Multi-exonic caller configuration
 
@@ -152,7 +181,50 @@ These parameters control single-exon isoform calling. They are only configurable
 
 ## Outputs
 
-The command produces two output files:
+The command produces three output files:
 
-1. `<prefix>.isoforms.gtf.gz`: GTF file containing all called isoforms
-2. `<prefix>.count_matrix.txt`: Read count matrix with the counts of full splice match reads across samples
+1. `<prefix>.isoforms.gtf.gz`: BGZF-compressed, gzip-compatible GTF file containing all called isoforms
+2. `<prefix>.count_matrix.txt`: Per-sample supporting-read counts for each reported transcript
+3. `<prefix>.closest_known.txt`: A list of reported novel isoforms and the closest known isoforms (see below).
+
+### Closest known isoforms
+
+`<prefix>.closest_known.txt` contains one row per reported novel isoform. For
+each novel isoform, Isocall compares it with candidate annotated isoforms and
+reports the closest match.
+
+| Column                   | Description                                     |
+|--------------------------|-------------------------------------------------|
+| `novel_gene_id`          | Assigned gene identifier for the novel isoform  |
+| `novel_isoform_id`       | Novel isoform identifier                        |
+| `novel_isoform_type`     | `monoexonic` or `multiexonic`                   |
+| `closest_known_distance` | Inclusion distance to the closest known isoform |
+| `known_gene_id`          | Closest known isoform gene identifier, or `NA`  |
+| `known_isoform_id`       | Closest known isoform identifier, or `NA`       |
+| `known_isoform_type`     | `monoexonic`, `multiexonic`, or `NA`            |
+
+The distance is measured in bases. For a fixed novel isoform and a fixed known
+isoform, it is the smallest number of bases that must be added to or removed
+from the novel isoform's exonic sequence so that the edited novel isoform is
+compatible with the known isoform.
+
+Compatibility is defined by the known isoform:
+
+- Known monoexonic: The edited novel isoform must become one non-empty exon
+  fully contained within the known exon. Overhang past either known exon
+  boundary is not allowed.
+- Known multiexonic: The edited novel isoform may match any contiguous block of
+  one or more known exons. Internal splice junctions and internal exon
+  boundaries inside the selected block must match the known coordinates exactly.
+  If the block starts at the first known exon, overhang past that outer terminal
+  boundary is allowed without penalty. If the block ends at the last known exon,
+  overhang past that outer terminal boundary is also allowed without penalty.
+  At non-terminal block boundaries, the edited boundary must remain within the
+  selected known exon.
+
+Isocall reports the known isoform with the minimum distance. If no compatible
+annotated isoform exists within the assigned gene, the known-isoform fields are
+reported as `NA`. If multiple known isoforms have the same minimum distance,
+Isocall prefers a same-class match (`monoexonic` to `monoexonic` or
+`multiexonic` to `multiexonic`) and then breaks any remaining tie by transcript
+identifier.

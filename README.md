@@ -5,12 +5,12 @@
 > [!WARNING]
 > **Please note:** Isocall is currently in active development and should be used for experimentation and feedback.
 
-Isocall workflow consists of the following steps:
+Isocall works as a four-step workflow:
 
-- Prepare annotations of known isoforms (`isocall prep-isoforms`)
-- Generate a transcription profile for each sample in the dataset (`isocall profile`)
-- Merge the profiles together (`isocall merge`)
-- Call isoforms from the resulting merged profile (`isocall call`)
+- Prepare known isoforms from a reference annotation with [`isocall prep-isoforms`](docs/prep-isoforms.md)
+- Generate one transcriptome profile per sample with [`isocall profile`](docs/profile.md)
+- Merge profiles with [`isocall merge`](docs/merge.md)
+- Call known and novel isoforms with [`isocall call`](docs/call.md)
 
 ## Authors and contributors
 
@@ -20,23 +20,38 @@ Isocall workflow consists of the following steps:
 | Jocelyne Bruand      | PacBio          |
 | Yerbol Kurmangaliyev | Brandeis U.     |
 | Megan Schertzer      | U. of Virginia  |
+| Jonathan Belyeu      | PacBio          |
 | Ryan Gossart         | Brandeis U.     |
 | Elizabeth Tseng      | PacBio          |
 | Zev Kronenberg       | PacBio          |
 
 ## Installation
 
-A Linux binary is available in the releases page.
+A Linux binary is available on the GitHub releases page.
 
-## Example
+A container image is also available on Quay:
+[quay.io/repository/pacbio/isocall](https://quay.io/repository/pacbio/isocall)
 
-Prepare annotations of known isoform from RefSeq, ENCODE, or other GTF file:
+## Where Isocall fits in the Iso-Seq analysis workflow
+
+Isocall is an alternative to the clustering (`isoseq cluster`) and collapse
+(`isoseq cluster2`) part of the current [Iso-Seq workflow](https://isoseq.how/getting-started.html).
+It starts from FLNC BAMs aligned to the same reference genome and performs
+multi-sample isoform calling directly. The FLNC BAMs, containing full-length
+non-concatemer reads, are produced by `isoseq refine`.
+
+## Quickstart
+
+Start from a GTF annotation, typically provided as `.gtf.gz`, plus one
+reference-aligned FLNC BAM per sample.
+
+Prepare known isoforms from RefSeq, GENCODE, or another annotation set:
 
 ```bash
 isocall prep-isoforms --gtf hg38.ncbiRefSeq.gtf.gz --output ref_seq.isoforms.gz
 ```
 
-Suppose your dataset consists of three samples `sampleA`, `sampleB`, and `sampleC`.  Run the profile command to generate a profile for each sample:
+Suppose the dataset consists of three samples, `sampleA`, `sampleB`, and `sampleC`. Generate one profile per sample:
 
 ```bash
 isocall profile --reads sampleA.bam --sample sampleA --output sampleA.gz
@@ -56,17 +71,34 @@ And finally call the isoforms:
 isocall call --merged-profile merged.gz --known-isoforms ref_seq.isoforms.gz --reference hg38.fa --output-prefix merged
 ```
 
-## Notes
+The `isocall call` step is tunable. You can relax or adjust calling and
+filtering thresholds through CLI parameters or a TOML config file. The default
+settings are intentionally more stringent; see
+[`docs/call.md`](docs/call.md) and [`examples/config.toml`](examples/config.toml).
 
-- Use `--use-all-chroms` to include non-core chromosomes in `isocall profile` and `isocall call`
+This produces:
+
+- `merged.isoforms.gtf.gz`
+- `merged.count_matrix.txt`
+- `merged.closest_known.txt`
+
+## Requirements and Notes
+
+- `isocall prep-isoforms`, `isocall profile`, and `isocall merge` currently emit BGZF-compressed, gzip-compatible output and expect output paths ending in `.gz`
+- Use `--use-all-chroms` in both `isocall profile` and `isocall call` if you want to include non-core contigs into the analysis
 - The `--reference` argument requires an indexed FASTA file (with a corresponding `.fai` index)
+- Passing `--sample` to `isocall profile` is recommended when sample names are not cleanly encoded in the BAM header
+- `isocall call` has many adjustable thresholds and filters; if sensitivity is too low for your use case, review the calling parameters before changing the upstream workflow
 - Isocall currently does not call novel isoforms on `chrM`; it passes through the reference isoforms for that chromosome
 
-## Reference
+## Command Reference
 
+- [Preparing known isoforms with `isocall prep-isoforms`](docs/prep-isoforms.md)
 - [Generating transcription profiles with `isocall profile`](docs/profile.md)
 - [Merging profiles with `isocall merge`](docs/merge.md)
 - [Calling isoforms with `isocall call`](docs/call.md)
+
+The CLI also exposes `isocall filter`, but the current implementation is not complete and should not be treated as a supported workflow step yet.
 
 ## Need help?
 
