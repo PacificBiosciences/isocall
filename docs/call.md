@@ -184,7 +184,7 @@ These parameters control single-exon isoform calling. They are only configurable
 The command produces three output files:
 
 1. `<prefix>.isoforms.gtf.gz`: BGZF-compressed, gzip-compatible GTF file containing all called isoforms
-2. `<prefix>.count_matrix.txt`: Per-sample supporting-read counts for each reported transcript
+2. `<prefix>.count_matrix.txt`: Per-sample read counts for each reported transcript. Multi-exon transcripts count reads with the same full intron chain; single-exon transcripts count single-exon reads fully contained within the transcript exon.
 3. `<prefix>.closest_known.txt`: A list of reported novel isoforms and the closest known isoforms (see below).
 
 ### Closest known isoforms
