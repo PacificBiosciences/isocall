@@ -24,8 +24,6 @@ isocall profile --reads sample.bam --output sample.gz
 | Argument           | Default          | Description                       |
 |--------------------|------------------|-----------------------------------|
 | `--sample`         | extract from BAM | Sample identifier for the profile |
-| `--use-all-chroms` | off              | Profile non-core chromosomes      |
-| `--skip-mito`      | off              | Skip mitochondrial reads (chrM)   |
 | `--io-threads`     | 2                | BGZF/BAM IO threads for input and output |
 
 Passing `--sample` is recommended when you want deterministic sample naming.
@@ -44,10 +42,6 @@ are processed.
   - Secondary alignments
 - Reads must have at least 95% of their sequence aligned to the reference
   genome. Reads with lower alignment coverage are skipped.
-- By default, non-core contigs are skipped. Use `--use-all-chroms` to include
-  all chromosomes and contigs.
-- Mitochondrial reads (chrM) are included by default. Use `--skip-mito` to
-  exclude them.
 
 ## Sample name resolution
 

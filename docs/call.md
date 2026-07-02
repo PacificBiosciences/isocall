@@ -28,11 +28,8 @@ isocall call \
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--threads` | 1 | Number of threads to use |
-| `--use-all-chroms` | off | Include non-core chromosomes when loading known isoforms |
 | `--config` | none | Path to TOML configuration file |
 
-If you profiled non-core contigs with `isocall profile --use-all-chroms`, use
-the same flag here so the known-isoform database is loaded consistently.
 
 ## Configuration file
 
@@ -69,16 +66,16 @@ max_distance = 20           # Max distance to compare transcripts
 abundance_base = 0.1        # Relative abundance threshold
 
 [mono_exonic_caller]
-bin_width = 10              # Bin width for peak detection (bp)
-window_bp = 100             # Window for local background (bp)
-min_count = 3               # Minimum count at candidate bin
-z_min = 4.0                 # Minimum z-score for peak detection
+max_3p_gap = 20             # Max gap (bp) between adjacent 3′ ends within one cluster
+min_support = 10            # Minimum total read count for a cluster to be called
+five_prime_trim_fraction = 0.05 # Fraction of outermost 5′ read-end observations to trim
 
 [multi_exonic_caller]
 extend_known_ends = false   # Extend known isoform ends based on reads
+terminal_trim_fraction = 0.10 # Ignore the most extreme 10% of read-supported ends on each side
 ```
 
-## Sampling Configuration
+## Sampling configuration
 
 The sampling section controls read support thresholds and downsampling behavior.
 
@@ -90,7 +87,7 @@ The sampling section controls read support thresholds and downsampling behavior.
 
 Note that bundles overlapping multiple genes are assigned to the highest-expressed gene for sampling.
 
-### When to Adjust Sampling Parameters
+### Adjusting sampling parameters
 
 - Increase `min_reads_per_isoform`: For higher confidence novel isoform calls (reduces false positives)
 - Decrease `min_reads_per_isoform`: To detect low-abundance novel isoforms (may increase false positives)
@@ -99,12 +96,10 @@ Note that bundles overlapping multiple genes are assigned to the highest-express
 - Increase `max_bundles_per_gene`: For more thorough analysis of complex genes (slower)
 - Decrease `max_bundles_per_gene`: For faster processing (may miss some isoforms)
 
-## Internal Priming Filter
+## Internal priming filter
 
 The internal priming filter detects and removes novel isoforms that are likely
-artifacts of internal priming during reverse transcription.
-
-### How It Works
+artifacts of internal priming during reverse transcription. It works like so:
 
 1. Known isoforms are always retained regardless of downstream sequence content.
    Novel isoforms with A-rich downstream sequences are flagged as potential
@@ -127,14 +122,12 @@ artifacts of internal priming during reverse transcription.
 | `--internal-priming-filter-run-length` | `run_length` | 6 | Minimum consecutive A's to trigger filtering |
 | `--internal-priming-filter-rescue-distance` | `rescue_distance` | 25 | Max distance to annotated TTS for rescue (bp) |
 
-## Relative Abundance Filter
+## Relative abundance filter
 
-The relative abundance filter removes low-abundance novel isoforms that are similar to higher-abundance isoforms. This helps reduce redundant novel isoform calls that may be artifacts.
-
-### How It Works
-
-For each pair of isoforms (higher-abundance vs lower-abundance), the filter does
-the following:
+The relative abundance filter removes low-abundance novel isoforms that are
+similar to higher-abundance isoforms. This helps reduce redundant novel isoform
+calls that may be artifacts. For each pair of isoforms (higher-abundance vs
+lower-abundance), the filter does the following:
 
 1. Calculates distance between the two transcripts from their exon chains: it
 sums junction/UTR boundary differences (in bp) and the length of exons that do
@@ -166,26 +159,67 @@ These parameters control behavior of multi-exon isoform calling. They are only c
 
 | Config Key | Default | Description |
 |------------|---------|-------------|
-| `extend_known_ends` | `false` | Whether to extend known isoform terminal exon coordinates based on reads. When enabled, the start/end coordinates of identified known isoforms will be extended to match the longest observed first/last exons from supporting reads. |
+| `extend_known_ends` | `false` | Whether to extend known isoform terminal exon coordinates based on reads. When enabled, identified known isoforms are extended, but never shrunk, according to the specified trim fraction. |
+| `terminal_trim_fraction` | `0.10` | Fraction of the most extreme read-supported ends to ignore on each side when calling multi-exon isoform ends. `0.10` ignores the outermost 10%; `0.0` uses the full observed span. |
 
 ## Mono-exonic caller configuration
 
-These parameters control single-exon isoform calling. They are only configurable via the config file.
+These parameters control single-exon isoform calling. They are only configurable
+via the config file.
+
+Reads are sorted by their 3′-end and grouped into clusters while the distance
+between adjacent 3′ ends is below `max_3p_gap`. A cluster containing at least
+`min_support` reads, produces an isoform candidate whose 3' end is the mode
+of 3' read ends and 5' is obtained by trimming `five_prime_trim_fraction` of
+the outermost 5′ read ends.
 
 | Config Key | Default | Description |
 |------------|---------|-------------|
-| `bin_width` | 10 | Bin width for peak detection (bp) |
-| `window_bp` | 100 | Window for local background estimation (bp) |
-| `min_count` | 3 | Minimum count at candidate bin |
-| `z_min` | 4.0 | Minimum z-score for peak detection |
+| `max_3p_gap` | 20 | Maximum gap (bp) between adjacent 3′ ends within one cluster |
+| `min_support` | 10 | Minimum total read count for a cluster to be called |
+| `five_prime_trim_fraction` | 0.05 | Fraction of outermost 5′ read-end observations to trim |
 
 ## Outputs
 
 The command produces three output files:
 
-1. `<prefix>.isoforms.gtf.gz`: BGZF-compressed, gzip-compatible GTF file containing all called isoforms
-2. `<prefix>.count_matrix.txt`: Per-sample read counts for each reported transcript. Multi-exon transcripts count reads with the same full intron chain; single-exon transcripts count single-exon reads fully contained within the transcript exon.
-3. `<prefix>.closest_known.txt`: A list of reported novel isoforms and the closest known isoforms (see below).
+1. `<prefix>.isoforms.gtf.gz`: BGZF-compressed, gzip-compatible GTF file
+   containing all called isoforms
+2. `<prefix>.count_matrix.txt`: Per-sample read counts for each reported
+    transcript. Multi-exon transcripts count reads with the same full intron
+    chain; single-exon transcripts count single-exon reads fully contained
+    within the transcript exon.
+3. `<prefix>.closest_known.txt`: A list of reported novel isoforms and the
+   closest known isoforms (see below).
+
+### Novel identifiers
+
+Novel transcripts assigned to an annotated gene use the annotated gene
+identifier followed by a transcript counter:
+
+```text
+<gene_id>|T1
+<gene_id>|T2
+```
+
+For example, a novel transcript assigned to `GENE1` is reported as
+`GENE1|T1`.
+
+Novel genes use their genomic span and strand:
+
+```text
+GENE|<seqid>:<start>-<end>|<f/r>
+```
+
+`seqid` is the reference contig, `start` is the 1-based inclusive start of the
+first exon assigned to the novel gene, `end` is the inclusive end of the last
+exon assigned to the novel gene, and `f`/`r` indicates forward or reverse
+strand. Novel transcripts on novel genes append the same transcript counter:
+
+```text
+GENE|chr1:100-250|f|T1
+GENE|chr1:100-250|f|T2
+```
 
 ### Closest known isoforms
 

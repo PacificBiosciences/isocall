@@ -85,7 +85,6 @@ This produces:
 ## Requirements and Notes
 
 - `isocall prep-isoforms`, `isocall profile`, and `isocall merge` currently emit BGZF-compressed, gzip-compatible output and expect output paths ending in `.gz`
-- Use `--use-all-chroms` in both `isocall profile` and `isocall call` if you want to include non-core contigs into the analysis
 - The `--reference` argument requires an indexed FASTA file (with a corresponding `.fai` index)
 - Passing `--sample` to `isocall profile` is recommended when sample names are not cleanly encoded in the BAM header
 - `isocall call` has many adjustable thresholds and filters; if sensitivity is too low for your use case, review the calling parameters before changing the upstream workflow
