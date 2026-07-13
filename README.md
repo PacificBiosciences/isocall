@@ -96,6 +96,7 @@ This produces:
 - [Generating transcription profiles with `isocall profile`](docs/profile.md)
 - [Merging profiles with `isocall merge`](docs/merge.md)
 - [Calling isoforms with `isocall call`](docs/call.md)
+- [Assigning reads to transcripts with `isocall assign-reads`](docs/assign-reads.md)
 
 The CLI also exposes `isocall filter`, but the current implementation is not complete and should not be treated as a supported workflow step yet.
 
